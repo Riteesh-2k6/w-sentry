@@ -1,0 +1,105 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+# Anchored to the repo root: an unanchored "lib/" also matches
+# frontend/src/lib/, which holds dashboard source we need tracked.
+/lib/
+/lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
+# NOTE: git only treats "#" as a comment at the START of a line. A trailing
+# comment becomes part of the pattern, so these must stay on their own lines.
+
+# Large datasets not tracked in git
+data/raw/
+
+# Generated preprocessed datasets
+data/processed/*.csv
+
+# Numpy arrays. Note this does NOT match roc_curves.npz (.npz != .npy), which
+# is intentional — the ROC export stays tracked alongside the *_results.json.
+data/processed/*.npy
+
+# PyTorch model weights
+*.pth
+
+# Pickle files
+*.pkl
+
+# Keras/HDF5 models
+*.h5
+
+# Saved model checkpoints (the model card stays tracked)
+models/
+!models/README.md
+
+# Training logs
+logs/
+*.log
+
+# Temporary files
+*.tmp
+temp/
+tmp/
