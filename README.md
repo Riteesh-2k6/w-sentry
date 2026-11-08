@@ -1,34 +1,40 @@
 # W-SENTRY
 
-**Cross-Domain Wireless Intrusion Detection System with Domain Adversarial Neural Networks**
+**Cross-dataset evaluation of wireless and IoT intrusion detectors**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.6.0-EE4C2C.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > **Major Project (2026-27)** — KG Reddy College of Engineering & Technology, Hyderabad  
-> *Team:* Riteesh Thiruveedhula, M. Vikas Goud, Shaik Gafar, V. Sai Tarun Reddy  
-> *Guide:* Dr. [Faculty Name]
+> *Team:* Riteesh Thiruveedhula, V. Sai Tarun Reddy, M. Vikas Goud, Shaik Gafar  
+> *Guide:* Bapu Sreenivas
 
 ---
 
 ## Overview
 
-W-SENTRY is an AI-powered wireless network intrusion detection system that achieves **state-of-the-art cross-dataset generalization** through:
+W-SENTRY trains wireless and IoT intrusion detectors and measures how well they hold up on a dataset they were not trained on. It uses three public datasets (WSN-DS, CICIoT2023 and Edge-IIoTset), with their attack labels mapped to a shared five-class taxonomy. It includes:
 
-1. **Two-track feature engineering** — native dataset-specific features for same-dataset accuracy, protocol-agnostic behavioral features for cross-dataset transfer
-2. **Log normalization preprocessing** — handles billion-range protocol values (tcp.ack_raw, tcp.payload) that destroy gradient flow (+37.6 pp accuracy gain on Edge-IIoTset)
-3. **Domain Adversarial Neural Network (DANN)** — gradient reversal training closes 85% of the cross-dataset accuracy gap
-4. **Hybrid CNN-BiLSTM-Attention architecture** — temporal pattern recognition for sequential network traffic
+1. **Two-track feature engineering**: native dataset-specific features for same-dataset tests, and protocol-agnostic behavioral features for cross-dataset tests
+2. **Log normalization preprocessing** for billion-range protocol fields (tcp.ack_raw, tcp.payload)
+3. **Hybrid CNN-BiLSTM-Attention model** for sequential network traffic
+4. **Domain Adversarial Neural Network (DANN)** with gradient reversal, trained on pooled CICIoT2023 and Edge-IIoTset data
+5. **Random Forest and XGBoost baselines**
+
+The main finding: models that score 91.9% to 99.6% on their own dataset score far lower on the others.
 
 ### Key Results
 
-| Metric | Value |
+| Result | Value |
 |--------|-------|
-| **Same-Dataset Accuracy** | WSN-DS: 98.1% · CIC-IoT-2023: 97.8% · Edge-IIoTset: 94.4% |
-| **Cross-Dataset Transfer** | WSN→Edge: 80.7% · Edge→CIC: 61.8% (vs 11.9% / 67.6% baseline RF) |
-| **DANN 2-Domain (CIC+Edge)** | 96.5% CIC / 96.3% Edge (unified model) |
-| **Training Speed** | ~3 min/epoch on RTX 3050 (6GB VRAM, 200K samples, batch 256) |
+| **Same-dataset accuracy, hybrid (native features)** | WSN-DS 98.06% · CICIoT2023 97.80% · Edge-IIoTset 94.39% |
+| **Same-dataset accuracy, Random Forest** | WSN-DS 99.60% · CICIoT2023 99.42% · Edge-IIoTset 92.06% (macro-F1 only 65.9%) |
+| **Cross-dataset accuracy, Random Forest** (full target test set) | 0.18% to 67.64%; all six scores are below a constant prediction of the target's largest class |
+| **Cross-dataset accuracy, hybrid** (target restricted to the source's classes) | 0.30% to 80.70% |
+| **DANN on pooled CICIoT2023 + Edge-IIoTset** | 96.5% / 96.3% on those two datasets' own test sets (not a transfer test) |
+
+Every number is a single run, without variance estimates, read from `data/processed/phase1_results.json` and `phase2_results.json` or derived from their confusion matrices (macro-F1). Scoring protocols differ between models, as the table notes. The saved results came from earlier versions of the scripts than the ones in this repo, and there is no saved result for a 3-domain DANN.
 
 ---
 
@@ -37,7 +43,7 @@ W-SENTRY is an AI-powered wireless network intrusion detection system that achie
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  DATA SOURCES                                                        │
-│  WSN-DS (374K) · CIC-IoT-2023 (1.05M) · Edge-IIoTset (50K)         │
+│  WSN-DS (374K) · CIC-IoT-2023 (1.05M) · Edge-IIoTset (~200K)         │
 └────────────────┬────────────────────────────────────────────────────┘
                  │
                  ▼
@@ -57,7 +63,7 @@ W-SENTRY is an AI-powered wireless network intrusion detection system that achie
 │  │ Conv1D(15→32→64) + BN       │  │ Feature Extractor (shared)     ││
 │  │ BiLSTM(64→128, 2 layers)    │  │ Threat Classifier (5 classes)  ││
 │  │ Self-Attention + Dense      │  │ Gradient Reversal Layer        ││
-│  │ Output: 5 threat classes    │  │ Domain Discriminator (3 doms)  ││
+│  │ Output: 5 threat classes    │  │ Domain Discriminator (2 doms)  ││
 │  └─────────────────────────────┘  └────────────────────────────────┘│
 └────────────────┬────────────────────────────────────────────────────┘
                  │
@@ -117,7 +123,7 @@ python run_phase2.py
 # Output: data/processed/phase2_results.json
 # Trains:
 #   - Hybrid CNN-BiLSTM-Attention (native + behavioral features)
-#   - DANN 3-domain (WSN+CIC+Edge) and 2-domain (CIC+Edge)
+#   - DANN 3-domain (WSN+CIC+Edge; no saved result) and 2-domain (CIC+Edge)
 #   - Temperature scaling calibration
 ```
 
@@ -158,7 +164,7 @@ w-sentry/
 │   ├── raw/                      # Downloaded datasets (not in repo, use scripts/download_datasets.py)
 │   │   ├── WSN-DS.csv            # 374K samples, 15 routing features
 │   │   ├── IoT_Intrusion.csv     # CIC-IoT-2023, 1.05M samples, 48 flow features
-│   │   └── ML-EdgeIIoT-dataset.csv  # 50K samples (balanced), 48 protocol features
+│   │   └── ML-EdgeIIoT-dataset.csv  # ~200K stratified sample used, 35 protocol features
 │   └── processed/                # Experiment results (JSON)
 │       ├── phase1_results.json   # RF/XGBoost baselines
 │       └── phase2_results.json   # Hybrid DL + DANN results
@@ -176,7 +182,7 @@ w-sentry/
 │   ├── live/                     # Scapy capture + real-time inference (Phase 3)
 │   ├── attack/                   # hping3/nmap/ARP spoof scripts (Phase 3)
 │   └── mitigation/               # Firewall automation (Phase 3)
-├── tests/                        # Pytest suite (11/11 passing)
+├── tests/                        # Pytest suite
 │   ├── test_phase1.py
 │   └── test_phase2.py
 ├── paper/                        # IEEE conference paper draft
@@ -199,19 +205,21 @@ w-sentry/
 
 ## Research Contribution
 
-**Novel contributions:**
+The paper, *Same-Dataset Accuracy Does Not Transfer: Cross-Dataset Evaluation of Intrusion Detectors on WSN-DS, CICIoT2023, and Edge-IIoTset*, reports:
 
-1. **First 3×3 cross-dataset transfer study** on WSN-DS, CIC-IoT-2023, and Edge-IIoTset
-2. **Log normalization preprocessing** for network traffic (solves billion-range protocol field problem)
-3. **Two-track feature engineering** pattern for IDS (native + behavioral dual pipeline)
-4. **DANN application to wireless IDS** — closes 85% of cross-dataset gap (vs 18.2% RF baseline)
+1. Same-dataset results for RF, XGBoost, the hybrid model and DANN, and 3×3 transfer matrices for RF and the hybrid model.
+2. Accuracy hides class imbalance: RF reaches 92.1% accuracy on Edge-IIoTset but only 65.9% macro-F1.
+3. Every RF transfer accuracy is below the share of the largest class in the target test set.
+4. DANN, trained on pooled data, scores 1.1 to 1.3 points below the behavioral-feature hybrid models trained on each dataset separately (97.79% on CICIoT2023, 97.42% on Edge-IIoTset). Whether its adversarial term learned domain-invariant features is untested.
+
+It does not name a best model. Its conclusion is that same-dataset accuracy alone is not evidence of transfer, and a transfer claim needs matched scoring protocols, per-class metrics and repeated runs.
 
 **Target venues:**
 - IEEE CONECCT 2027 (International Conference on Electronics, Computing and Communication Technologies)
 - IEEE ICCCNT 2027 (International Conference on Computing, Communication and Networking Technologies)
 - IEEE Access (journal, open access)
 
-**Paper status:** Draft complete (2,860 words, 7 tables, 4 figures, 11 references)
+**Paper status:** 6-page IEEE conference paper in preparation (`paper/w-sentry-paper-ieee.tex`)
 
 ---
 
@@ -221,7 +229,7 @@ w-sentry/
 |---------|---------|----------|--------------|--------|
 | [WSN-DS](https://www.kaggle.com/datasets/ghulamali/wsn-ds) | 374K | 14 routing | Grayhole, Blackhole, Flooding, TDMA, Scheduling | Wireless Sensor Networks |
 | [CIC-IoT-2023](https://www.kaggle.com/datasets/madhavmalhotra/iot-intrusion-dataset) | 1.05M | 48 flow | DDoS (HTTP/TCP/UDP), Recon, MITM, Spoofing, Backdoor | IoT Network Traffic |
-| [Edge-IIoTset](https://www.kaggle.com/datasets/mohamedamineferrag/edgeiiotset-cyber-security-dataset-of-iot-iiot) | 50K (ML file) | 35 protocol | DDoS, SQL injection, XSS, Ransomware, Port scan, Backdoor | Industrial Edge Networks |
+| [Edge-IIoTset](https://www.kaggle.com/datasets/mohamedamineferrag/edgeiiotset-cyber-security-dataset-of-iot-iiot) | ~200K sampled | 35 protocol | DDoS, SQL injection, XSS, Ransomware, Port scan, Backdoor | Industrial Edge Networks |
 
 **License:** All datasets are publicly available under their respective licenses (citation required).
 
@@ -241,21 +249,21 @@ w-sentry/
 
 **Tested on:**
 - Windows 11 with RTX 3050 (6GB), CUDA 13.0, PyTorch 2.6.0+cu128
-- Training time: ~3 min/epoch (GPU) vs ~20 min/epoch (CPU) for 200K sequences
+- Training time: roughly 3 min/epoch (GPU) vs 20 min/epoch (CPU) for 200K sequences (rough observation, not logged)
 
 ---
 
 ## Citation
 
-If you use W-SENTRY in your research, please cite:
+The paper is not published yet. Until it is, please cite the repository:
 
 ```bibtex
-@inproceedings{thiruveedhula2027wsentry,
-  title={Cross-Domain Transferability of Deep Learning Intrusion Detection: A Multi-Dataset Study with Domain Adversarial Training},
-  author={Thiruveedhula, Riteesh and Goud, M. Vikas and Gafar, Shaik and Reddy, V. Sai Tarun},
-  booktitle={IEEE International Conference on Electronics, Computing and Communication Technologies (CONECCT)},
-  year={2027},
-  organization={IEEE}
+@misc{thiruveedhula2026wsentry,
+  title={Same-Dataset Accuracy Does Not Transfer: Cross-Dataset Evaluation of Intrusion Detectors on WSN-DS, CICIoT2023, and Edge-IIoTset},
+  author={Thiruveedhula, Riteesh and Reddy, Velagala Sai Tarun and Goud, Mogili Vikas and Gafar, Shaik},
+  year={2026},
+  howpublished={\url{https://github.com/Riteesh-2k6/w-sentry}},
+  note={Paper in preparation}
 }
 ```
 
@@ -284,4 +292,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Status:** ✅ Phase 1 Complete · ✅ Phase 2 Complete · ✅ Phase 3 (Dashboard + Live Demo) Integrated · 📝 Phase 4 (Paper) Draft Ready
+**Status:** ✅ Phase 1 Complete · ✅ Phase 2 Complete · ✅ Phase 3 (Dashboard + Live Demo) Integrated · 📝 Phase 4 (Paper) in preparation
